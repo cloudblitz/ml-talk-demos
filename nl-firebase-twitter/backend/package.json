@@ -4,17 +4,19 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "preinstall": "echo \"preinstall\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "async": "^2.4.0",
-    "bad-words": "^1.5.1",
-    "firebase-admin": "^4.2.1",
-    "google-cloud": "^0.53.0",
-    "request": "^2.81.0",
-    "twitter": "^1.7.0"
+    "async": "2.4.0",
+    "bad-words": "1.5.1",
+    "firebase-admin": "8.7.0",
+    "@google-cloud/bigquery": "4.4.0",
+    "@google-cloud/prediction": "0.8.0",
+    "request": "2.81.0",
+    "twitter": "1.7.1"
   }
 }

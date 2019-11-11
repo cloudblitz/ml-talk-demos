@@ -13,11 +13,8 @@
 // limitations under the License.
 
 
-
-
 // TODO: initialize Firebase. Place your Firebase config credentials here
-// var config = {....}
-// firebase.initializeApp(config);
+firebase.initializeApp(firebaseConfig);
 
 const database = firebase.database();
 const adjRef = database.ref('tokens').child('ADJ');

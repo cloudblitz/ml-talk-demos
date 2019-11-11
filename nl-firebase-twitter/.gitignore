@@ -1,3 +1,4 @@
-keyfile.json
-backend/local*.json
+**/keyfile.json
+**/local*.json
 **/node_modules
+**/config.js

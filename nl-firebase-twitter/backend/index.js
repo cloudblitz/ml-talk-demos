@@ -24,6 +24,19 @@ const client = new Twitter({
   access_token_secret: config.twitter_access_secret
 });
 
+const schema = [
+  { name: 'id', type: 'STRING', mode: 'REQUIRED' },
+  { name: 'text', type: 'STRING' },
+  { name: 'user', type: 'STRING' },
+  { name: 'user_time_zone', type: 'STRING' },
+  { name: 'user_followers_count', type: 'INTEGER' },
+  { name: 'hashtags', type: 'STRING' },
+  { name: 'tokens', type: 'STRING' },
+  { name: 'score', type: 'FLOAT' },
+  { name: 'magnitude', type: 'FLOAT' },
+  { name: 'entities', type: 'STRING' }
+];
+
 // const gcloud = require('google-cloud')({
 //   keyFilename: 'keyfile.json',
 //   projectId: config.project_id
@@ -53,19 +66,18 @@ async function handle() {
   const tables = await bigqueryClient.dataset(dataset.id).getTables();
   let table = tables && tables[0] && tables[0].length ? tables[0].filter(t => t.id == config.bigquery_table)[0] : null;
 
+  // /* todo: fix this to not delete the table and instead just update the table */
+  // if (table.schema !== schema) {
+  //   await bigqueryClient
+  //     .dataset(dataset.id)
+  //     .table(table.id)
+  //     .delete();
+
+  //   console.log(`Table ${table.id} deleted.`);
+  //   table = null;
+  // }
+
   if (!table) {
-    const schema = [
-      { name: 'id', type: 'STRING', mode: 'REQUIRED' },
-      { name: 'text', type: 'STRING' },
-      { name: 'user', type: 'STRING' },
-      { name: 'user_time_zone', type: 'STRING' },
-      { name: 'user_followers_count', type: 'INTEGER' },
-      { name: 'hashtags', type: 'STRING' },
-      { name: 'tokens', type: 'STRING' },
-      { name: 'score', type: 'STRING' },
-      { name: 'magnitude', type: 'STRING' },
-      { name: 'entities', type: 'STRING' }
-    ]
     // const table = dataset.table(config.bigquery_table);
 
     // For all options, see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
@@ -87,7 +99,7 @@ async function handle() {
 
   // Replace searchTerms with whatever tweets you want to stream
   // Details here: https://dev.twitter.com/streaming/overview/request-parameters#track
-  const searchTerms = '#VoteBlueToEndThisNightmare';
+  const searchTerms = '#DeepState';
 
   // Add a filter-level param?
   client.stream('statuses/filter', { track: searchTerms, language: 'en' }, function (stream) {
@@ -202,15 +214,23 @@ async function handle() {
           user: tweet.user.screen_name,
           user_time_zone: tweet.user.time_zone,
           user_followers_count: tweet.user.followers_count,
-          hashtags: JSON.stringify(tweet.entities.hashtags),
-          tokens: JSON.stringify(body.tokens),
+          hashtags: tweet.entities.hashtags,
+          // hashtags: JSON.stringify(tweet.entities.hashtags),
+          tokens: body.tokens,
+          // tokens: JSON.stringify(body.tokens),
           score: body.documentSentiment.score,
           magnitude: body.documentSentiment.magnitude,
-          entities: JSON.stringify(body.entities)
+          entities: body.entities
+          // entities: JSON.stringify(body.entities)
         }
 
         tweetRef.set(tweetForFb);
-        table.insert(bqRow, function (error, insertErr, apiResp) {
+        table.insert(JSON.stringify(bqRow), {
+          ignoreUnknownValues: true,
+          raw: true,
+          skipInvalidRows: true,
+          schema: schema
+        }, function (error, insertErr, apiResp) {
           if (error) {
             console.log('err', error);
           } else if (insertErr.length == 0) {
@@ -225,8 +245,71 @@ async function handle() {
   }
 }
 
+async function mock_insert() {
+  const [datasets] = await bigqueryClient.getDatasets();
+  console.log('Datasets:', datasets);
+  // const [tables] = await bigquery.getTables();
+
+  let dataset = datasets.filter(d => d.id == config.bigquery_dataset)[0];
+
+  if (!dataset) {
+    // Create the dataset
+    const [newDataset] = await bigqueryClient.createDataset(config.bigquery_dataset);
+    console.log(`Dataset ${newDataset.id} created.`);
+    dataset = newDataset;
+  }
+
+  const tables = await bigqueryClient.dataset(dataset.id).getTables();
+  let table = tables && tables[0] && tables[0].length ? tables[0].filter(t => t.id == config.bigquery_table)[0] : null;
+
+  if (!table) {
+    // const table = dataset.table(config.bigquery_table);
+
+    // For all options, see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
+    const options = {
+      schema: schema,
+      location: 'US',
+    };
+
+    const [newTable] = await bigqueryClient
+      .dataset(dataset.id)
+      .createTable(config.bigquery_table, options);
+
+    console.log(`Table ${newTable.id} created.`);
+    table = newTable;
+  }
+
+  const bqRow = {
+    "id": "1193715729800949760",
+    "text": null,
+    "user": "AmericaDuped",
+    "user_time_zone": null,
+    "user_followers_count": 6003,
+    "hashtags": null,
+    "tokens": null,
+    "score": 0.2,
+    "magnitude": 0.5,
+    "entities": null
+  };
+
+
+  table.insert([bqRow], {
+    ignoreUnknownValues: true,
+    // raw: true,
+    // skipInvalidRows: true,
+    schema: schema
+  }, function (error, insertErr, apiResp) {
+    if (error) {
+      console.log('err', error);
+    } else if (insertErr.length == 0) {
+      console.log('success!');
+    }
+  });
+}
+
 try {
-  handle();
+  // handle();
+  mock_insert();
 } catch (err) {
   console.log(err);
 }
